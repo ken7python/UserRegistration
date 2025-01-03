@@ -29,7 +29,7 @@ console.log(_env.SECRET_KEY);
 const app = new Application();
 const router = new Router();
 
-app.use(oakCors({origin: "*"}));
+//app.use(oakCors({origin: "*"}));
 
 
 
