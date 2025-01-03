@@ -69,7 +69,7 @@
                         const data = await response.json();
 
                         if (response.ok) {
-                            alert("サインアップ成功！トップページへ移動します。");
+                            //alert("サインアップ成功！トップページへ移動します。");
                             window.location.href = '/';  // ログインページにリダイレクト
                         } else {
                             this.errorMessage = data.message || "サインアップに失敗しました。";
