@@ -125,10 +125,7 @@ export class Authentication{
 
     async profile(ctx: Context) {
         const token = await ctx.cookies.get("token");
-        //console.log("token: " + token);
         if (!token) {
-            //ctx.response.status = 401;
-            //ctx.response.body = { message: "認証されていません" };
             return {status: 401, body: {message: "認証されていません"} };
         }
     
@@ -136,16 +133,11 @@ export class Authentication{
             const payload = await verify(token, SECRET_KEY, { alg: "HS256" });
             const result = await client.query("SELECT user_id FROM users WHERE username = ?", [payload.iss]);
             if (result.length === 0) {
-                //ctx.response.status = 401;
-                //ctx.response.body = { message: "認証されていません" };
                 return {status: 401, body: {message: "認証されていません"} };
             }
-            //ctx.response.body = { username: payload.iss, user_id: result[0].user_id };
             return {status: 200, body: { username: payload.iss, user_id: result[0].user_id,message: "OK" }};
         } catch(err) {
             console.error(err);
-            //ctx.response.status = 401;
-            //ctx.response.body = { message: "認証されていません" };
             return {status: 401, body: {message: "認証されていません"} };
         }
     }
@@ -160,8 +152,6 @@ export class Authentication{
             this.user_id = res.body.user_id;
             this.isLogin = true;
         }
-        //ctx.response.status = res.status;
-        //ctx.response.body = res.body;
         return {username: this.username,user_id: this.user_id,isLogin: status};
     }
     async Logout(){
