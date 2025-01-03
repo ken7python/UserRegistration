@@ -1,8 +1,6 @@
 import { Application, Router, Context} from "https://deno.land/x/oak@v8.0.0/mod.ts"
-//import { create, verify, getNumericDate } from "https://deno.land/x/djwt/mod.ts";
 import { Client } from "https://deno.land/x/mysql/mod.ts";
-//import * as bcrypt from "https://deno.land/x/bcrypt/mod.ts";
-import { oakCors } from "https://deno.land/x/cors/mod.ts";
+//import { oakCors } from "https://deno.land/x/cors/mod.ts";
 import { config } from "https://deno.land/x/dotenv/mod.ts";
 
 import { User,Certification } from "./models/user.ts";
@@ -31,9 +29,6 @@ const router = new Router();
 
 //app.use(oakCors({origin: "*"}));
 
-
-
-
 // ユーザーの登録処理
 router.post("/signup", async (ctx: Context) => {
     const body = await ctx.request.body().value;
@@ -48,20 +43,22 @@ router.post("/login", async (ctx: Context) => {
     const user = new User(body.username, body.password,ctx);
     await user.Login();
 });
+
+// ログアウト処理
 router.get("/logout", (ctx: Context) => {
     console.log("/logout");
     ctx.cookies.delete("token");
     ctx.response.redirect("/");
 });
 
-
-
+// Cookieに保存されたJWTを確認してユーザー情報を取得
 router.get("/profile", async (ctx: Context) => {
     console.log("/profile");
     const certification = new Certification(ctx);
     ctx.response.body = {username: (await certification.get_user()).username};
 });
 
+// トップページ
 router.get("/", async (ctx: Context) => {
     console.log("/");
     const certification = new Certification(ctx);
@@ -73,6 +70,7 @@ router.get("/", async (ctx: Context) => {
     }
 });
 
+// サインアップページ
 router.get("/signup", async (ctx: Context) => {
     console.log("/signup");
     const certification = new Certification(ctx);
