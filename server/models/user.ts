@@ -115,10 +115,12 @@ export class Authentication{
     ctx : Context;
     username: string;
     user_id: string;
+    isLogin : boolean;
     constructor(Context: Context){
         this.ctx = Context;
         this.username = "";
         this.user_id = "";
+        this.isLogin = false;
     }
 
     async profile(ctx: Context) {
@@ -138,7 +140,7 @@ export class Authentication{
                 //ctx.response.body = { message: "認証されていません" };
                 return {status: 401, body: {message: "認証されていません"} };
             }
-            ctx.response.body = { username: payload.iss, user_id: result[0].user_id };
+            //ctx.response.body = { username: payload.iss, user_id: result[0].user_id };
             return {status: 200, body: { username: payload.iss, user_id: result[0].user_id,message: "OK" }};
         } catch(err) {
             console.error(err);
@@ -156,13 +158,15 @@ export class Authentication{
             status = true;
             this.username = res.body.username;
             this.user_id = res.body.user_id;
+            this.isLogin = true;
         }
         //ctx.response.status = res.status;
         //ctx.response.body = res.body;
-        return {username: this.username,user_id: this.user_id,status: status};
+        return {username: this.username,user_id: this.user_id,isLogin: status};
     }
     async Logout(){
-        if ( (await this.get_user()).status) {
+        await this.get_user();
+        if ( this.isLogin) {
             this.ctx.cookies.delete("token");
             return {status: 200, body: {message: " ログアウトされました"}};
         }else{

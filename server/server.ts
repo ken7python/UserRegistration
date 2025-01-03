@@ -15,6 +15,7 @@ await client.connect({
     username: _env.MYSQL_USER,  // MySQLのユーザー名
     password: _env.MYSQL_PASSWORD,  // MySQLのパスワード
     db: _env.MYSQL_DATABASE,  // データベース名
+    port: 3306,  // MySQLのポート番号
 });
 
 /*
@@ -62,15 +63,17 @@ router.get("/logout", async (ctx: Context) => {
 router.get("/profile", async (ctx: Context) => {
     console.log("/profile");
     const auth = new Authentication(ctx);
-    ctx.response.body = {username: (await auth.get_user()).username};
+    await auth.get_user();
+    ctx.response.body = {username: auth.username};
 });
 
 // トップページ
 router.get("/", async (ctx: Context) => {
     console.log("/");
     const auth = new Authentication(ctx);
-    ctx.response.body = await auth.get_user()
-    if ((await auth.get_user()).status) {
+    await auth.get_user();
+    //ctx.response.body = await auth.get_user()
+    if (auth.isLogin) {
         /* userIDProcessingのテスト
         const user_id = (await auth.get_user()).user_id;
         const name: string = await userIDProcess.getUsernameById(user_id);
@@ -87,8 +90,9 @@ router.get("/", async (ctx: Context) => {
 router.get("/signup", async (ctx: Context) => {
     console.log("/signup");
     const auth = new Authentication(ctx);
-    ctx.response.body = await auth.get_user()
-    if ((await auth.get_user()).status) {
+    await auth.get_user();
+    //ctx.response.body = await auth.get_user()
+    if (auth.isLogin) {
         ctx.response.body = Deno.readTextFileSync("./src/index.html");
     }else{
         ctx.response.body = Deno.readTextFileSync("./src/signup.html");
