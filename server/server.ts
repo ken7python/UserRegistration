@@ -3,7 +3,8 @@ import { Client } from "https://deno.land/x/mysql/mod.ts";
 //import { oakCors } from "https://deno.land/x/cors/mod.ts";
 import { config } from "https://deno.land/x/dotenv/mod.ts";
 
-import { User,Certification } from "./models/user.ts";
+import { User,Certification,UserIDProcessing } from "./models/user.ts";
+const userIDProcess = new UserIDProcessing();
 
 const _env = config();  // .envファイルを読み込む
 
@@ -64,6 +65,12 @@ router.get("/", async (ctx: Context) => {
     const certification = new Certification(ctx);
     ctx.response.body = await certification.get_user()
     if ((await certification.get_user()).status) {
+        /* userIDProcessingのテスト
+        const user_id = (await certification.get_user()).user_id;
+        const name: string = await userIDProcess.getUsernameById(user_id);
+        console.log(user_id);
+        console.log(name);
+        */
         ctx.response.body = Deno.readTextFileSync("./src/index.html");
     }else{
         ctx.response.body = Deno.readTextFileSync("./src/login.html");

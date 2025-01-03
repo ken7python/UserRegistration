@@ -162,3 +162,14 @@ export class Certification{
         return {username: this.username,user_id: this.user_id,status: status};
     }
 }
+
+export class UserIDProcessing{
+    async getUsernameById(user_id: string): Promise<string> {
+        const result = await client.query("SELECT username FROM users WHERE user_id = ?", [user_id]);
+        if (result.length > 0) {
+            return result[0].username;
+        } else {
+            return "";
+        }
+    }
+}
