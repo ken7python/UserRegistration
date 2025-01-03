@@ -7,14 +7,6 @@ import { config } from "https://deno.land/x/dotenv/mod.ts";
 
 const _env = config();  // .envファイルを読み込む
 
-/*
-console.log(_env.MYSQL_HOST);
-console.log(_env.MYSQL_USER);
-console.log(_env.MYSQL_PASSWORD);
-console.log(_env.MYSQL_DATABASE);
-*/
-
-
 // MySQL接続設定
 const client = new Client();
 await client.connect({
@@ -24,8 +16,6 @@ await client.connect({
     db: _env.MYSQL_DATABASE,  // データベース名
 });
 
-//const SECRET_KEY = "your-secret-key";  // JWT用のシークレットキー
-
 const SECRET_KEY: CryptoKey = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(_env.SECRET_KEY),
@@ -34,7 +24,13 @@ const SECRET_KEY: CryptoKey = await crypto.subtle.importKey(
     ["sign", "verify"]
 );
 
-//console.log(_env.SECRET_KEY);
+/*
+console.log(_env.MYSQL_HOST);
+console.log(_env.MYSQL_USER);
+console.log(_env.MYSQL_PASSWORD);
+console.log(_env.MYSQL_DATABASE);
+console.log(_env.SECRET_KEY);
+*/
 
 const app = new Application();
 const router = new Router();
@@ -50,28 +46,85 @@ async function generateJWT(username: string) {
     return await create({ alg: "HS256", typ: "JWT" }, payload, SECRET_KEY);
 }
 
+//ユーザー情報とクッキーの管理
 class User{
     username: string;
     password: string;
-    constructor(username: string, password: string){
+    HasedPassword: string;
+    ctx : Context;
+    constructor(username: string, password: string,ctx: Context){
         this.username = username;
         this.password = password;
-    }
+        this.ctx = ctx;
+        this.HasedPassword = bcrypt.hashSync(this.password);
+    };
 
     // CookieにJWTを保存する関数
-    async setCookie(ctx: Context){
+    async SetCookie(){
         // JWTを生成してCookieに保存
         const jwt = await generateJWT(this.username);
         //console.log("jwt: " + jwt);
-        ctx.cookies.set("token", jwt, {
+        this.ctx.cookies.set("token", jwt, {
             httpOnly: true,
             //secure: true,  // 本番環境ではHTTPSを使用する
             secure: false,
             sameSite: "strict",
         });
     };
+    // ユーザー名が既に登録されているか確認
+    async IsSameUser(){
+        const result = await client.query("SELECT * FROM users WHERE username = ?", [this.username]);
+        if (result.length > 0) {
+            return true;
+        }else{
+            return false;
+        }
+    }
+    async Signup(){
+        if (await this.IsSameUser()) {
+            this.ctx.response.status = 401;
+            this.ctx.response.body = { message: "同じ名前の人がいるので登録できません" };
+            return;
+        }else{
+            try {
+                // ユーザー情報をデータベースに保存
+                await this.AddDB();
+                await this.SetCookie();
+                this.ctx.response.status = 201;
+                this.ctx.response.body = {message: "User registered successfully"};
+            } catch (error) {
+                console.error(error);
+                this.ctx.response.status = 400;
+                this.ctx.response.body = { message: "ユーザー登録エラー", error: (error as any).message };
+            }
+        }
+    }
+    async AddDB(){
+        await client.execute(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            [this.username, this.HasedPassword]
+        );
+    }
+    async Login(){
+        if (!await this.IsSameUser()) {
+            this.ctx.response.status = 401;
+            this.ctx.response.body = { message: "そのようなユーザーは登録されていません。" };
+            return;
+        }
+        const result = await client.query("SELECT * FROM users WHERE username = ?", [this.username]);
+        const isPasswordValid = await bcrypt.compare(this.password, result[0].password);
+        if (isPasswordValid) {
+            await this.SetCookie();
+            this.ctx.response.status = 200;
+            this.ctx.response.body = { message: "Login successful"};
+        }else{
+            this.ctx.response.status = 401;
+            this.ctx.response.body = { message: "ユーザー名とパスワードが一致しません" };
+            return;
+        }
+    }
 };
-// JWT検証
+// Cookieを読み出し、JWT検証、User情報の取得
 class Certification{
     ctx : Context;
     username: string;
@@ -128,74 +181,16 @@ class Certification{
 // ユーザーの登録処理
 router.post("/signup", async (ctx: Context) => {
     const body = await ctx.request.body().value;
-    /*
-    const username = body.username;
-    const password = body.password;
-    */
-    const user = new User(body.username, body.password);
-
-    // パスワードをハッシュ化
-    const hashedPassword = await bcrypt.hash(user.password);
-
-    // ユーザー情報をデータベースから取得
-    const result = await client.query("SELECT * FROM users WHERE username = ?", [user.username]);
-
-    if (result.length > 0) {
-        ctx.response.status = 401;
-        ctx.response.body = { message: "同じ名前の人がいるので登録できません" };
-        return;
-    }
-
-    try {
-        // ユーザー情報をデータベースに保存
-        await client.execute(
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            [user.username, hashedPassword]
-        );
-        await user.setCookie(ctx);
-        ctx.response.status = 201;
-        ctx.response.body = {message: "User registered successfully"};
-    } catch (error) {
-        console.error(error);
-        ctx.response.status = 400;
-        ctx.response.body = { message: "ユーザー登録エラー", error: (error as any).message };
-    }
+    const user = await new User(body.username, body.password,ctx);
+    await user.Signup();
 });
 
 // ログイン処理
 router.post("/login", async (ctx: Context) => {
     console.log("/login");
     const body = await ctx.request.body().value;
-    //console.log(body);
-    /*
-    const username = body.username;
-    const password = body.password;
-    */
-    const user = new User(body.username, body.password);
-
-    // ユーザー情報をデータベースから取得
-    const result = await client.query("SELECT * FROM users WHERE username = ?", [user.username]);
-
-    if (result.length === 0) {
-        ctx.response.status = 401;
-        ctx.response.body = { message: "そのようなユーザーは登録されていません。" };
-        return;
-    }
-
-    // パスワードが一致するか確認
-    const isPasswordValid = await bcrypt.compare(user.password, result[0].password);
-    if (!isPasswordValid) {
-        ctx.response.status = 401;
-        ctx.response.body = { message: "ユーザー名とパスワードが一致しまsん" };
-        return;
-    }
-
-    await user.setCookie(ctx);
-
-    ctx.response.status = 200;
-    //ctx.response.body = { message: "Login successful" };
-    console.log("Login successful");
-    ctx.response.body = { message: "Login successful"};
+    const user = new User(body.username, body.password,ctx);
+    await user.Login();
 });
 router.get("/logout", (ctx: Context) => {
     console.log("/logout");
