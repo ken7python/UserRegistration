@@ -3,7 +3,7 @@ import { Client } from "https://deno.land/x/mysql/mod.ts";
 //import { oakCors } from "https://deno.land/x/cors/mod.ts";
 import { config } from "https://deno.land/x/dotenv/mod.ts";
 
-import { User,Certification,UserIDProcessing } from "./models/user.ts";
+import { User,Authentication,UserIDProcessing } from "./models/user.ts";
 const userIDProcess = new UserIDProcessing();
 
 const _env = config();  // .envファイルを読み込む
@@ -46,27 +46,33 @@ router.post("/login", async (ctx: Context) => {
 });
 
 // ログアウト処理
-router.get("/logout", (ctx: Context) => {
+router.get("/logout", async (ctx: Context) => {
     console.log("/logout");
-    ctx.cookies.delete("token");
-    ctx.response.redirect("/");
+    const auth = new Authentication(ctx);
+    const logout = await auth.Logout();
+    if (logout.status == 200) {
+        ctx.response.redirect("/");
+    }else{
+        ctx.response.status = logout.status;
+        ctx.response.body = logout.body;
+    }
 });
 
 // Cookieに保存されたJWTを確認してユーザー情報を取得
 router.get("/profile", async (ctx: Context) => {
     console.log("/profile");
-    const certification = new Certification(ctx);
-    ctx.response.body = {username: (await certification.get_user()).username};
+    const auth = new Authentication(ctx);
+    ctx.response.body = {username: (await auth.get_user()).username};
 });
 
 // トップページ
 router.get("/", async (ctx: Context) => {
     console.log("/");
-    const certification = new Certification(ctx);
-    ctx.response.body = await certification.get_user()
-    if ((await certification.get_user()).status) {
+    const auth = new Authentication(ctx);
+    ctx.response.body = await auth.get_user()
+    if ((await auth.get_user()).status) {
         /* userIDProcessingのテスト
-        const user_id = (await certification.get_user()).user_id;
+        const user_id = (await auth.get_user()).user_id;
         const name: string = await userIDProcess.getUsernameById(user_id);
         console.log(user_id);
         console.log(name);
@@ -80,9 +86,9 @@ router.get("/", async (ctx: Context) => {
 // サインアップページ
 router.get("/signup", async (ctx: Context) => {
     console.log("/signup");
-    const certification = new Certification(ctx);
-    ctx.response.body = await certification.get_user()
-    if ((await certification.get_user()).status) {
+    const auth = new Authentication(ctx);
+    ctx.response.body = await auth.get_user()
+    if ((await auth.get_user()).status) {
         ctx.response.body = Deno.readTextFileSync("./src/index.html");
     }else{
         ctx.response.body = Deno.readTextFileSync("./src/signup.html");

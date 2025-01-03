@@ -32,7 +32,7 @@ async function generateJWT(username: string) {
     return await create({ alg: "HS256", typ: "JWT" }, payload, SECRET_KEY);
 }
 
-//ユーザー情報とクッキーの管理
+//登録、ログインするときのユーザー情報とクッキーの管理
 export class User{
     username: string;
     password: string;
@@ -110,8 +110,8 @@ export class User{
         }
     }
 };
-// Cookieを読み出し、JWT検証、User情報の取得
-export class Certification{
+// Cookieを読み出し、JWT検証、User情報の取得、ログアウト
+export class Authentication{
     ctx : Context;
     username: string;
     user_id: string;
@@ -160,6 +160,14 @@ export class Certification{
         //ctx.response.status = res.status;
         //ctx.response.body = res.body;
         return {username: this.username,user_id: this.user_id,status: status};
+    }
+    async Logout(){
+        if ( (await this.get_user()).status) {
+            this.ctx.cookies.delete("token");
+            return {status: 200, body: {message: " ログアウトされました"}};
+        }else{
+            return {status: 401, body: {message: "認証されていません"}};
+        }
     }
 }
 
